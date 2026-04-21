@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+	<title>AI Character Forge v8</title>
+	<style>
+		:root { --bg: #0f0f13; --panel: #1a1a20; --text: #dcdcdc; --accent: #00ffcc; --accent-hover: #00ccaa; }
+		body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 10px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; font-size: 14px; }
+		h1 { margin: 0 0 10px 0; font-size: 1.5em; color: var(--accent); }
+		h2 { margin: 0 0 8px 0; font-size: 1.1em; color: var(--accent); border-bottom: 1px solid #333; padding-bottom: 4px; }
+		.top-section { background-color: var(--panel); padding: 10px; border-radius: 6px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.5); flex-shrink: 0; }
+		.toolbar { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; align-items: center; }
+		input[type="text"], select { flex: 1; padding: 6px; background-color: #25252e; color: white; border: 1px solid #444; border-radius: 3px; font-size: 0.9em; min-width: 120px; box-sizing: border-box; }
+		optgroup { background-color: #1a1a20; color: var(--accent); font-style: normal; font-weight: bold; }
+		option { color: white; }
+		input[type="file"] { display: none; }
+		textarea { width: 100%; height: 60px; background-color: #08080a; color: #fff; border: 1px solid var(--accent); border-radius: 4px; padding: 6px; font-size: 0.9em; resize: none; box-sizing: border-box; font-family: monospace; }
+		button, .file-btn { background-color: var(--accent); color: #000; border: none; padding: 6px 12px; font-size: 0.9em; font-weight: bold; border-radius: 3px; cursor: pointer; transition: 0.2s; white-space: nowrap; display: inline-block; text-decoration: none; text-align: center; box-sizing: border-box; }
+		button:hover, .file-btn:hover { background-color: var(--accent-hover); }
+		.btn-danger { background-color: #cc0000; color: white; }
+		.btn-danger:hover { background-color: #aa0000; }
+		.bottom-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; overflow-y: auto; padding-right: 5px; }
+		.category-card { background-color: var(--panel); padding: 10px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+		.control-group { margin-bottom: 12px; }
+		label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.75em; text-transform: uppercase; color: #aaa; }
+		input[type="range"] { width: 100%; cursor: pointer; accent-color: var(--accent); height: 4px; margin: 10px 0; }
+		.value-display { float: right; color: var(--accent); font-weight: normal; }
+		.hidden { display: none !important; }
+		.custom-container { display: flex; gap: 5px; margin-top: 5px; }
+		.custom-container input { flex: 2; }
+		.custom-container button { flex: 1; padding: 4px 8px; font-size: 0.8em; }
+		.changelog-link { position: fixed; bottom: 5px; right: 10px; font-size: 10px; color: #666; text-decoration: none; opacity: 0.6; transition: 0.2s; background: var(--bg); padding: 2px 5px; border-radius: 3px; z-index: 500; }
+		.changelog-link:hover { opacity: 1; color: var(--accent); }
+		.toast { position: fixed; top: 10px; right: 10px; background: var(--accent); color: #000; padding: 8px 15px; border-radius: 4px; font-weight: bold; opacity: 0; transition: 0.3s; pointer-events: none; z-index: 1000; font-size: 0.9em; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+		@media (max-width: 600px) {
+			body { height: auto; padding: 5px; }
+			.bottom-section { grid-template-columns: 1fr; overflow-y: visible; }
+			.toolbar { flex-direction: column; align-items: stretch; }
+			button, .file-btn, input[type="text"], select { font-size: 16px; padding: 10px; min-height: 44px; }
+			textarea { font-size: 16px; }
+		}
+	</style>
+</head>
+<body>
+	<div id="toast" class="toast">Action Successful!</div>
+	<div class="top-section">
+		<h1>AI Character Forge</h1>
+		<div class="toolbar">
+			<button onclick="resetForm()" class="btn-danger">Reset All</button>
+			<input type="text" id="profileName" placeholder="Profile name...">
+			<button onclick="saveProfile()">Save</button>
+			<select id="profileLoader" onchange="loadProfile()">
+				<option value="">-- Load Profile --</option>
+			</select>
+			<button onclick="exportJSON()">Export JSON</button>
+			<label class="file-btn" for="importFile">Import JSON</label>
+			<input type="file" id="importFile" accept=".json" onchange="importJSON(event)">
+			<button id="copyBtn">Copy Prompt</button>
+		</div>
+		<textarea id="promptOutput" readonly placeholder="Prompt output..."></textarea>
+	</div>
+	<div class="bottom-section" id="formContainer">
+		<div class="category-card">
+			<h2>Core Identity</h2>
+			<div class="control-group">
+				<label>Art Style</label>
+				<select id="artStyle" class="prompt-trigger">
+					<option value="" selected>-- Select --</option>
+					<option value="iPhone 15 Pro Max photo, unedited, realistic">iPhone Photo</option>
+					<option value="DSLR 50mm lens, depth of field, photorealistic">DSLR Photography</option>
+					<option value="Raw 35mm film photograph, highly detailed">Raw 35mm Film</option>
+					<option value="polaroid vintage photo aesthetic">Vintage Polaroid</option>
+					<option value="photorealistic, 8k resolution, hyper-detailed">Photorealistic 8k</option>
+					<option value="comic book style, bold lines, vibrant colors">Comic Book</option>
+					<option value="anime style, studio ghibli inspired">Anime</option>
+					<option value="3d render, octane render, unreal engine 5">3D Render</option>
+					<option value="delicate watercolor illustration">Watercolor</option>
+					<option value="classic oil painting on canvas">Oil Painting</option>
+				</select>
+			</div>
+			<div class="control-group">
+				<label>Age <span class="value-display" id="ageVal">25</span></label>
+				<input type="range" id="age" class="prompt-trigger" min="18" max="90" value="25" oninput="document.getElementById('ageVal').innerText = this.value">
+			</div>
+			<div class="control-group">
+				<label>Gender</label>
+				<select id="gender" class="prompt-trigger">
+					<option value="" selected>-- Select --</option>
+					<option value="female">Female</option>
+					<option value="male">Male</option>
+				</select>
+			</div>
+			<div class="control-group">
+				<label>Ethnicity</label>
+				<select id="ethnicity" class="prompt-trigger">
+					<option value="" selected>-- Select --</option>
+					<option value="Caucasian">Caucasian</option>
+					<option value="African American">African American</option>
+					<option value="Hispanic">Hispanic</option>
+					<option value="East Asian">East Asian</option>
+					<option value="South Asian">South Asian</option>
+					<option value="Middle Eastern">Middle Eastern</option>
+					<option value="Latino">Latino</option>
+					<option value="Indigenous">Indigenous</option>
+					<option value="Mixed Heritage">Mixed Heritage</option>
+					<option value="European">European</option>
+				</select>
+			</div>
+		</div>
+		<div class="category-card">
+			<h2>Head & Face</h2>
+			<div class="control-group">
+				<label>Head Shape</label>
+				<select id="headShape" class="prompt-trigger">
+					<option value="" selected>-- Select --</option>
+					<option value="oval face">Oval</option>
+					<option value="round face">Round</option>
+					<option value="square jawline">Square</option>
+					<option value="heart shaped face">Heart</option>
+					<option value="diamond shaped face">Diamond</option>
+				</select>
+			</div>
+			<div class="control-group">
+				<label>Hair Style</label>
+				<select id="hairStyle" class="prompt-trigger">
+					<option value="" selected>-- Select --</option>
+					<option value="bald">Bald</option>
+					<option value="short messy hair">Short Messy</option>
+					<option value="long wavy hair">Long Wavy</option>
+					<option value="long straight sleek hair">Long Straight</option>
+					<option value="afro">Afro</option>
+					<option value="dreadlocks">Dreadlocks</option>
+					<option value="bob cut">Bob Cut</option>
+					<option value="curly bob">Curly Bob</option>
+					<option value="ponytail">Ponytail</option>
+					<option value="pigtails">Pigtails</option>
+					<option value="space buns">Space Buns</option>
+					<option value="messy bun">Messy Bun</option>
+					<option value="french braid">French Braid</option>
+					<option value="slicked back">Slicked Back</option>
+					<option value="fade haircut">Fade</option>
+					<option value="undercut">Undercut</option>
+					<option value="mullet">Mullet</option>
+				</select>
+			</div>
+			<div class="control-group">
+				<label>Hair Color</label>
+				<select id="hairColor" class="prompt-trigger">
+					<option value="" selected>-- Select --</option>
+					<option value="raven black">Raven Black</option>
+					<option value="dark brown">Dark Brown</option>
+					<option value="chestnut">Chestnut</option>
+					<option value="auburn">Auburn</option>
+					<option value="platinum blonde">Platinum Blonde</option>
+					<option value="ginger">Ginger</option>
+					<option value="silver">Silver/Grey</option>
+					<option value="dyed pink">Dyed Pink</option>
+					<option value="pastel pink">Pastel Pink</option>
+					<option value="neon green">Neon Green</option>
+					<option value="teal">Teal</option>
+					<option value="split-dye black and white">Split-Dye (Black/White)</option>
+					<option value="balayage">Balayage</option>
+					<option value="ombre">Ombre</option>
+				</select>
+			</div>
+			<div class="control-group">
+				<label>Expression</label>
+				<select id="expression" class="prompt-trigger">
+					<option value="" selected>-- Select --</option>
+					<optgroup label="Happy / Playful">
+						<option value="warm smile">Warm Smile</option>
+						<option value="laughing joyfully">Laughing</option>
+						<option value="broad toothy smile">Broad Smile</option>
+						<option value="winking">Winking</option>
+						<option value="sticking tongue out playfully">Sticking Tongue Out</option>
+					</optgroup>
+					<optgroup label="Angry / Evil">
+						<option value="fierce scowl">Fierce Scowl</option>
+						<option value="angry yelling">Angry Yelling</option>
+						<option value="irritated glare">Irritated Glare</option>
+						<option value="evil grin">Evil Grin</option>
+					</optgroup>
+					<optgroup label="Aroused / Flirty">
+						<option value="seductive gaze">Seductive Gaze</option>
+						<option value="biting lower lip">Biting Lip</option>
+						<option value="subtle smirk">Subtle Smirk</option>
+						<option value="smug grin">Smug Grin</option>
+					</optgroup>
+					<optgroup label="Sad / Tired">
+						<option value="crying softly">Crying</option>
+						<option value="melancholy look">Melancholy</option>
+						<option value="pouting lips">Pouting</option>
+						<option value="exhausted and tired">Exhausted</option>
+					</optgroup>
+					<optgroup label="Other">
+						<option value="neutral expression">Neutral</option>
+						<option value="surprised wide eyes">Surprised</option>
+						<option value="terrified expression">Terrified</option>
+						<option value="confused look">Confused</option>
+						<option value="stoic and serious">Stoic</option>
+					</optgroup>
+				</select>
+			</div>
+		</div>
+		<div class="category-card">
+			<h2>Physique (Upper)</h2>
+			<div class="control-group">
+				<label>Muscle Mass <span class="value-display" id="muscleVal">Average</span></label>
+				<input type="range" id="muscleMass" class="prompt-trigger" min="1" max="10" value="6" oninput="updateLabel('muscleVal', this.value, labelMaps.muscleMassDisplay)">
+			</div>
+			<div class="control-group">
+				<label>Arm Tone <span class="value-display" id="armVal">Average</span></label>
+				<input type="range" id="armTone" class="prompt-trigger" min="1" max="10" value="5" oninput="updateLabel('armVal', this.value, labelMaps.armToneDisplay)">
+			</div>
+			<div class="control-group">
+				<label>Stomach <span class="value-display" id="stomachVal">Toned</span></label>
+				<input type="range" id="stomach" class="prompt-trigger" min="1" max="10" value="4" oninput="updateLabel('stomachVal', this.value, labelMaps.stomachDisplay)">
+			</div>
+			<div class="control-group female-only hidden">
+				<label>Breasts <span class="value-display" id="breastVal">Average</span></label>
+				<input type="range" id="breasts" class="prompt-trigger" min="1" max="10" value="5" oninput="updateLabel('breastVal', this.value, labelMaps.breastsDisplay)">
+			</div>
+		</div>
+		<div class="category-card">
+			<h2>Physique (Lower)</h2>
+			<div class="control-group">
+				<label>Leg Length <span class="value-display" id="legLenVal">Average</span></label>
+				<input type="range" id="legLength" class="prompt-trigger" min="1" max="10" value="5" oninput="updateLabel('legLenVal', this.value, labelMaps.legLengthDisplay)">
+			</div>
+			<div class="control-group">
+				<label>Leg Thickness <span class="value-display" id="legThickVal">Average</span></label>
+				<input type="range" id="legThickness" class="prompt-trigger" min="1" max="10" value="5" oninput="updateLabel('legThickVal', this.value, labelMaps.legThicknessDisplay)">
+			</div>
+			<div class="control-group female-only hidden">
+				<label>Butt Size <span class="value-display" id="buttVal">Average</span></label>
+				<input type="range" id="butt" class="prompt-trigger" min="1" max="10" value="5" oninput="updateLabel('buttVal', this.value, labelMaps.buttDisplay)">
+			</div>
+		</div>
+		<div class="category-card">
+			<h2>Clothing</h2>
+			<div class="control-group">
+				<label>Outfit / Top</label>
+				<select id="outfitTop" class="prompt-trigger">
+					<option value="" selected>-- Select --</option>
+					<option value="completely nude bare chest">Nude / Bare-Chested</option>
+					<option value="casual t-shirt">Casual T-Shirt</option>
+					<option value="leather biker jacket">Leather Jacket</option>
+					<option value="button-up shirt">Button-up Shirt</option>
+					<option value="streetwear hoodie">Hoodie</option>
+					<option value="crop top">Crop Top</option>
+				</select>
+			</div>
+			<div id="cleavageGroup" class="control-group female-only hidden">
+				<label>Cleavage <span class="value-display" id="cleavageVal">Modest Neckline</span></label>
+				<input type="range" id="cleavage" class="prompt-trigger" min="1" max="10" value="2" oninput="updateLabel('cleavageVal', this.value, labelMaps.cleavageDisplay)">
+			</div>
+			<div class="control-group">
+				<label>Outfit / Bottom</label>
+				<select id="outfitBottom" class="prompt-trigger">
+					<option value="" selected>-- Select --</option>
+					<option value="completely nude lower body bare legs">Nude / Bare-Legged</option>
+					<option value="denim jeans">Denim Jeans</option>
+					<option value="cargo shorts">Cargo Shorts</option>
+					<option value="formal slacks">Formal Slacks</option>
+					<option value="ripped jeans">Ripped Jeans</option>
+					<option value="sweatpants">Sweatpants</option>
+					<option value="yoga pants">Yoga Pants</option>
+					<option value="mini skirt">Mini Skirt</option>
+					<option value="maxi skirt">Maxi Skirt</option>
+					<option value="leather pants">Leather Pants</option>
+					<option value="traditional kilt">Kilt</option>
+					<option value="swimsuit bottoms">Swimsuit Bottoms</option>
+					<option value="spandex biker shorts">Biker Shorts</option>
+					<option value="black leggings">Leggings</option>
+				</select>
+			</div>
+			<div class="control-group">
+				<label>Footwear</label>
+				<select id="footwear" class="prompt-trigger">
+					<option value="" selected>-- Select --</option>
+					<option value="barefoot">Barefoot</option>
+					<option value="sneakers">Sneakers</option>
+					<option value="sandals">Sandals</option>
+					<option value="dress shoes">Dress Shoes</option>
+					<option value="combat boots">Combat Boots</option>
+					<option value="trainers">Trainers</option>
+					<option value="thigh high boots">Thigh High Boots</option>
+					<option value="loafers">Loafers</option>
+					<option value="high heels">High Heels</option>
+					<option value="stilettos">Stilettos</option>
+				</select>
+			</div>
+			<div class="control-group">
+				<label>Clothing Fit <span class="value-display" id="fitVal">Regular Fit</span></label>
+				<input type="range" id="clothingFit" class="prompt-trigger" min="1" max="10" value="6" oninput="updateLabel('fitVal', this.value, labelMaps.clothingFitDisplay)">
+			</div>
+		</div>
+		<div class="category-card">
+			<h2>Camera & Scene</h2>
+			<div class="control-group">
+				<label>Camera POV & Angle</label>
+				<select id="cameraAngle" class="prompt-trigger">
+					<option value="" selected>-- Select --</option>
+					<option value="first person point of view (POV)">First Person (POV)</option>
+					<option value="extreme close-up macro shot">Extreme Close-up</option>
+					<option value="close-up portrait shot">Close-up Portrait</option>
+					<option value="medium cowboy shot">Medium / Cowboy Shot</option>
+					<option value="full body wide shot">Full Body Wide Shot</option>
+					<option value="extreme wide shot establishing">Extreme Wide Shot</option>
+					<option value="high angle looking down">High Angle</option>
+					<option value="low angle worm's-eye view">Low Angle</option>
+					<option value="dutch angle tilted camera">Dutch Angle</option>
+					<option value="security camera cctv footage">Security Camera</option>
+					<option value="isometric overhead view">Isometric Overhead</option>
+				</select>
+			</div>
+			<div class="control-group">
+				<label>Pose / Action</label>
+				<select id="pose" class="prompt-trigger">
+					<option value="" selected>-- Select --</option>
+					<optgroup label="Aggressive / Action">
+						<option value="dynamic combat pose">Combat Pose</option>
+						<option value="running forward rapidly">Running</option>
+						<option value="jumping in mid-air">Jumping</option>
+					</optgroup>
+					<optgroup label="Flirting / Seductive">
+						<option value="lying down seductively">Lying Down Seductively</option>
+						<option value="looking over shoulder playfully">Looking Over Shoulder</option>
+						<option value="leaning against a wall teasingly">Leaning on Wall</option>
+					</optgroup>
+					<optgroup label="Relaxed / Casual">
+						<option value="sitting on the ground">Sitting</option>
+						<option value="relaxed contrapposto stance">Relaxed Stance</option>
+						<option value="arms crossed over chest">Arms Crossed</option>
+					</optgroup>
+					<optgroup label="Dramatic / Fantasy">
+						<option value="casting a magical spell">Casting Spell</option>
+						<option value="kneeling respectfully">Kneeling</option>
+						<option value="floating gracefully">Floating</option>
+					</optgroup>
+					<optgroup label="Active">
+						<option value="dancing dynamically">Dancing</option>
+						<option value="stretching muscles">Stretching</option>
+						<option value="crouching low to the ground">Crouching</option>
+					</optgroup>
+				</select>
+			</div>
+			<div class="control-group">
+				<label>Location / Background</label>
+				<select id="location" class="prompt-trigger">
+					<option value="" selected>-- Select --</option>
+					<option value="busy new york city intersection">Busy NYC Intersection</option>
+					<option value="quiet suburban neighborhood street">Suburban Neighborhood</option>
+					<option value="modern bright office space">Modern Office</option>
+					<option value="crowded subway train car">Subway Train</option>
+					<option value="sunny public park with trees">Public Park</option>
+					<option value="dimly lit dive bar interior">Dive Bar</option>
+					<option value="bright supermarket aisle">Supermarket</option>
+					<option value="quiet university library">University Library</option>
+					<option value="cozy coffee shop cafe interior">Cozy Cafe</option>
+					<option value="simple studio background">Studio Background</option>
+					<option value="solid white seamless background">Solid White</option>
+				</select>
+			</div>
+		</div>
+	</div>
+	<a href="#" class="changelog-link" onclick="showChangelog(event)">Changelog</a>
+	<script>
+		const labelMaps = { muscleMassDisplay: ['Frail', 'Very Skinny', 'Skinny', 'Lean', 'Toned', 'Average', 'Fit', 'Muscular', 'Bodybuilder', 'Massive Monster'], armToneDisplay: ['Skeletal', 'Very Slender', 'Slender', 'Soft', 'Average', 'Defined', 'Toned', 'Muscular', 'Bulky', 'Massive'], stomachDisplay: ['Emaciated', 'Very Flat', 'Flat', 'Toned', 'Soft', 'Pouch', 'Chubby', 'Fat', 'Large Belly', 'Massive Belly'], breastsDisplay: ['Flat', 'Very Small', 'Small', 'Modest', 'Average', 'Full', 'Large', 'Very Large', 'Massive', 'Hyper-Massive'], legLengthDisplay: ['Dwarven', 'Extremely Short', 'Very Short', 'Short', 'Average', 'Slightly Long', 'Long', 'Very Long', 'Model', 'Endless'], legThicknessDisplay: ['Twig-like', 'Skeletal', 'Very Thin', 'Thin', 'Average', 'Athletic', 'Thick', 'Muscular', 'Very Thick', 'Massive Trunks'], buttDisplay: ['Concave', 'Flat', 'Very Small', 'Small', 'Average', 'Bubble', 'Plump', 'Large', 'Very Large', 'Massive'], clothingFitDisplay: ['Skin-tight', 'Very Tight', 'Tight', 'Fitted', 'Tailored', 'Regular Fit', 'Relaxed', 'Loose', 'Baggy', 'Very Baggy'], cleavageDisplay: ['Fully Covered', 'Modest Neckline', 'Slight Cleavage', 'Moderate Cleavage', 'Deep V-Neck', 'Plunging Neckline', 'Heavy Cleavage', 'Extreme Cleavage', 'Spilling Out', 'Barely Contained'], muscleMass: ['frail build', 'very skinny build', 'skinny build', 'lean build', 'toned build', 'average build', 'fit build', 'muscular build', 'bodybuilder physique', 'massive monster physique'], armTone: ['skeletal arms', 'very slender arms', 'slender arms', 'soft arms', 'average arms', 'defined arms', 'toned arms', 'muscular arms', 'bulky arms', 'massively huge arms'], stomach: ['emaciated stomach', 'very flat stomach', 'flat stomach', 'toned stomach', 'soft stomach', 'pouch belly', 'chubby belly', 'fat belly', 'large protruding belly', 'massive round belly'], breasts: ['completely flat chest', 'very small breasts', 'small breasts', 'modest breasts', 'average breasts', 'full breasts', 'large breasts', 'very large breasts', 'massive breasts', 'hyper-massive breasts'], legLength: ['dwarven short legs', 'extremely short legs', 'very short legs', 'short legs', 'average length legs', 'slightly long legs', 'long legs', 'very long legs', 'model-like legs', 'endless long legs'], legThickness: ['twig-like thin legs', 'skeletal legs', 'very thin legs', 'thin legs', 'average thickness legs', 'athletic legs', 'thick legs', 'muscular thick legs', 'very thick heavy legs', 'massive tree-trunk legs'], butt: ['concave flat butt', 'flat butt', 'very small butt', 'small butt', 'average butt', 'bubble butt', 'plump large butt', 'large butt', 'very large butt', 'massive butt'], clothingFit: ['skin-tight fit', 'very tight fit', 'tight fit', 'fitted clothes', 'tailored fit', 'regular fit', 'relaxed fit', 'loose fit', 'baggy fit', 'very baggy fit'], cleavage: ['fully covered neckline', 'modest neckline', 'slight cleavage', 'moderate cleavage', 'deep v-neck', 'plunging neckline', 'heavy cleavage', 'extreme cleavage', 'spilling out of top', 'barely contained cleavage'] };
+		function updateLabel(id, val, textArray) { document.getElementById(id).innerText = textArray[val - 1]; }
+		function toggleVisibility() { const g = document.getElementById('gender').value.toLowerCase(); const hasFem = (g === 'female' || g === 'custom'); document.querySelectorAll('.female-only').forEach(el => el.classList.toggle('hidden', !hasFem)); const top = document.getElementById('outfitTop').value; const showCleavage = hasFem && top && top !== 'completely nude bare chest' && top !== 'custom'; document.getElementById('cleavageGroup').classList.toggle('hidden', !showCleavage); buildPrompt(); }
+		function showToast(msg) { const t = document.getElementById('toast'); t.innerText = msg; t.style.opacity = 1; setTimeout(() => t.style.opacity = 0, 2000); }
+		function resetForm() { document.querySelectorAll('select.prompt-trigger').forEach(el => { el.value = ""; if(document.getElementById(el.id + '-custom')) document.getElementById(el.id + '-custom').classList.add('hidden'); }); document.querySelectorAll('input[type="range"]').forEach(el => { el.value = (el.id === 'muscleMass' || el.id === 'clothingFit' ? 6 : (el.id === 'stomach' ? 4 : (el.id === 'cleavage' ? 2 : 5))); el.dispatchEvent(new Event('input')); }); document.getElementById('promptOutput').value = ""; toggleVisibility(); showToast("Form Reset!"); }
+		function buildPrompt() {
+			let p = []; const art = document.getElementById('artStyle').value; if(art && art !== 'custom') p.push(art);
+			const age = document.getElementById('age').value; const eth = document.getElementById('ethnicity').value; const gen = document.getElementById('gender').value;
+			if(eth && eth !== 'custom' && gen && gen !== 'custom') p.push("A " + age + " year old " + eth + " " + gen);
+			else if(eth !== 'custom' && gen !== 'custom' && (eth || gen)) p.push((age + " year old " + eth + " " + gen).trim());
+			const head = document.getElementById('headShape').value; const hCol = document.getElementById('hairColor').value; const hSty = document.getElementById('hairStyle').value; const exp = document.getElementById('expression').value;
+			let faceArr = []; if(head && head !== 'custom') faceArr.push(head); if((hCol && hCol !== 'custom') || (hSty && hSty !== 'custom')) faceArr.push(((hCol==='custom'?'':hCol) + " " + (hSty==='custom'?'':hSty)).trim() + " hair"); if(exp && exp !== 'custom') faceArr.push(exp);
+			if(faceArr.length) p.push("head and face features: " + faceArr.join(", ").replace(/  +/g, ' '));
+			if(gen && gen !== 'custom') {
+				let upperBody = "upper body features: " + labelMaps.muscleMass[document.getElementById('muscleMass').value - 1] + ", " + labelMaps.armTone[document.getElementById('armTone').value - 1] + ", " + labelMaps.stomach[document.getElementById('stomach').value - 1];
+				const lowGen = gen.toLowerCase(); const hasFem = (lowGen === 'female');
+				if(hasFem) upperBody += ", " + labelMaps.breasts[document.getElementById('breasts').value - 1]; p.push(upperBody);
+				let lowerBody = "lower body features: " + labelMaps.legLength[document.getElementById('legLength').value - 1] + ", " + labelMaps.legThickness[document.getElementById('legThickness').value - 1];
+				if(hasFem) lowerBody += ", " + labelMaps.butt[document.getElementById('butt').value - 1]; p.push(lowerBody);
+			}
+			const top = document.getElementById('outfitTop').value; const bot = document.getElementById('outfitBottom').value; const foot = document.getElementById('footwear').value; const fitVal = labelMaps.clothingFit[document.getElementById('clothingFit').value - 1];
+			let wearArr = []; if(top && top !== 'custom') { wearArr.push(top); if(top !== 'completely nude bare chest' && document.getElementById('gender').value.toLowerCase() === 'female') { wearArr.push(labelMaps.cleavage[document.getElementById('cleavage').value - 1]); } } if(bot && bot !== 'custom') wearArr.push(bot); if(foot && foot !== 'custom') wearArr.push(foot); if(wearArr.length) { wearArr.push(fitVal); p.push("wearing: " + wearArr.join(", ")); }
+			const pov = document.getElementById('cameraAngle').value; if(pov && pov !== 'custom') p.push("camera: " + pov);
+			const pose = document.getElementById('pose').value; if(pose && pose !== 'custom') p.push("pose and action: " + pose);
+			const loc = document.getElementById('location').value; if(loc && loc !== 'custom') p.push("location and background: " + loc);
+			document.getElementById('promptOutput').value = p.join("; ");
+		}
+		function saveProfile() {
+			const name = document.getElementById('profileName').value.trim(); if(!name) { showToast("Enter a profile name!"); return; }
+			const state = {}; document.querySelectorAll('.prompt-trigger').forEach(el => state[el.id] = el.value);
+			let profiles = JSON.parse(localStorage.getItem('aiProfiles') || '{}'); profiles[name] = state; localStorage.setItem('aiProfiles', JSON.stringify(profiles));
+			showToast("Profile Saved!"); document.getElementById('profileName').value = ""; refreshLoader();
+		}
+		function loadProfile() {
+			const name = document.getElementById('profileLoader').value; if(!name) return;
+			const profiles = JSON.parse(localStorage.getItem('aiProfiles') || '{}'); const state = profiles[name];
+			if(state) { Object.keys(state).forEach(id => { const el = document.getElementById(id); if(el) { el.value = state[id]; if(el.type === 'range') el.dispatchEvent(new Event('input')); if(el.tagName === 'SELECT' && state[id] === 'custom') { document.getElementById(id + '-custom').classList.remove('hidden'); } else if (el.tagName === 'SELECT') { const c = document.getElementById(id + '-custom'); if(c) c.classList.add('hidden'); } } }); toggleVisibility(); showToast("Profile Loaded!"); }
+		}
+		function exportJSON() {
+			const data = localStorage.getItem('aiProfiles') || '{}'; const blob = new Blob([data], { type: 'application/json' });
+			const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'AI_Character_Profiles.json';
+			document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); showToast("Profiles Exported!");
+		}
+		function importJSON(e) {
+			const file = e.target.files[0]; if(!file) return; const reader = new FileReader();
+			reader.onload = function(event) {
+				try { const imported = JSON.parse(event.target.result); const existing = JSON.parse(localStorage.getItem('aiProfiles') || '{}');
+					Object.assign(existing, imported); localStorage.setItem('aiProfiles', JSON.stringify(existing)); refreshLoader(); showToast("Profiles Imported!"); } catch(err) { showToast("Invalid JSON file!"); }
+			}; reader.readAsText(file); e.target.value = "";
+		}
+		function refreshLoader() {
+			const loader = document.getElementById('profileLoader'); const profiles = JSON.parse(localStorage.getItem('aiProfiles') || '{}');
+			loader.innerHTML = '<option value="">-- Load Profile --</option>'; Object.keys(profiles).forEach(name => { const opt = document.createElement('option'); opt.value = name; opt.innerText = name; loader.appendChild(opt); });
+		}
+		function setupCustomDropdowns() {
+			const savedCustoms = JSON.parse(localStorage.getItem('aiCustomOptions') || '{}');
+			document.querySelectorAll('select.prompt-trigger').forEach(select => {
+				if(savedCustoms[select.id]) { savedCustoms[select.id].forEach(val => { const opt = document.createElement('option'); opt.value = val; opt.innerText = val; select.appendChild(opt); }); }
+				const customOpt = document.createElement('option'); customOpt.value = 'custom'; customOpt.innerText = '-- Add Custom --'; select.appendChild(customOpt);
+				const container = document.createElement('div'); container.id = select.id + '-custom'; container.className = 'custom-container hidden';
+				container.innerHTML = `<input type="text" id="${select.id}-input" placeholder="New entry..."><button onclick="addCustomOption('${select.id}')">Add</button><button onclick="removeCustomOption('${select.id}')" class="btn-danger" title="Delete selected option">🗑️</button>`;
+				select.parentNode.insertBefore(container, select.nextSibling);
+				select.addEventListener('change', function() {
+					let isSavedCustom = savedCustoms[this.id] && savedCustoms[this.id].includes(this.value);
+					if(this.value === 'custom' || isSavedCustom) { container.classList.remove('hidden'); } else { container.classList.add('hidden'); }
+					buildPrompt();
+				});
+			});
+		}
+		function addCustomOption(selectId) {
+			const inputEl = document.getElementById(selectId + '-input'); const val = inputEl.value.trim(); if(!val) return;
+			const selectEl = document.getElementById(selectId); const opt = document.createElement('option'); opt.value = val; opt.innerText = val;
+			selectEl.insertBefore(opt, selectEl.querySelector('option[value="custom"]')); selectEl.value = val; inputEl.value = '';
+			let customData = JSON.parse(localStorage.getItem('aiCustomOptions') || '{}'); if(!customData[selectId]) customData[selectId] = [];
+			if(!customData[selectId].includes(val)) customData[selectId].push(val); localStorage.setItem('aiCustomOptions', JSON.stringify(customData));
+			buildPrompt(); showToast("Custom Option Saved!"); setupCustomDropdownsRefresh(selectId);
+		}
+		function removeCustomOption(selectId) {
+			const selectEl = document.getElementById(selectId); const val = selectEl.value; if(val === 'custom' || val === '') return;
+			let customData = JSON.parse(localStorage.getItem('aiCustomOptions') || '{}'); if(customData[selectId]) { customData[selectId] = customData[selectId].filter(v => v !== val); localStorage.setItem('aiCustomOptions', JSON.stringify(customData)); const optToRemove = selectEl.querySelector(`option[value="${val}"]`); if (optToRemove) optToRemove.remove(); selectEl.value = ''; document.getElementById(selectId + '-custom').classList.add('hidden'); buildPrompt(); showToast("Custom Option Deleted!"); setupCustomDropdownsRefresh(selectId); }
+		}
+		function setupCustomDropdownsRefresh(selectId) {
+			const savedCustoms = JSON.parse(localStorage.getItem('aiCustomOptions') || '{}');
+			document.getElementById(selectId).addEventListener('change', function() {
+				let isSavedCustom = savedCustoms[this.id] && savedCustoms[this.id].includes(this.value);
+				if(this.value === 'custom' || isSavedCustom) { document.getElementById(this.id + '-custom').classList.remove('hidden'); } else { document.getElementById(this.id + '-custom').classList.add('hidden'); }
+			});
+		}
+		document.querySelectorAll('.prompt-trigger').forEach(el => el.addEventListener('input', toggleVisibility));
+		document.getElementById('gender').addEventListener('change', toggleVisibility);
+		document.getElementById('outfitTop').addEventListener('change', toggleVisibility);
+		document.getElementById('copyBtn').addEventListener('click', () => { navigator.clipboard.writeText(document.getElementById('promptOutput').value).then(() => showToast("Copied to Clipboard!")); });
+		function showChangelog(e) { e.preventDefault(); alert("Changelog:\n\nGroup 1 (Revs 0.001 - 0.003):\n- Setup, JSON saving, nude options.\n\nGroup 2 (Revs 0.004 - 0.006):\n- Reset button, import/export, custom logic, mobile optimized.\n\nGroup 3 (Revs 0.007 - 0.008):\n- Rev 0.007: Added photorealism, separated footwear, slider for clothing fit, categorized poses, locations.\n- Rev 0.008: Added camera POV, expanded hair/expressions, dynamic cleavage slider, and custom option deletion."); }
+		window.onload = () => { setupCustomDropdowns(); refreshLoader(); resetForm(); };
+	</script>
+</body>
+</html>
+
