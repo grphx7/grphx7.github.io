@@ -1,1 +1,395 @@
-yo yo index
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Gas Earned</title>
+	<style>
+		body { margin: 0; padding: 0; background-color: #1a1a2e; color: #e1e1e6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
+		#modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; justify-content: center; align-items: center; }
+		.modal-box { background: #222; border: 2px solid #ffd700; padding: 25px; border-radius: 12px; width: 400px; max-width: 90%; text-align: center; box-shadow: 0 0 20px rgba(255, 215, 0, 0.3); }
+		.modal-box h2 { margin-top: 0; color: #ffd700; }
+		.modal-box p { font-size: 14px; color: #ccc; margin-bottom: 20px; line-height: 1.4; }
+		.modal-btns { display: flex; justify-content: center; gap: 15px; }
+		.modal-btns button { padding: 10px 20px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+		#btn-allow-loc { background: #28a745; color: white; }
+		#btn-deny-loc { background: #dc3545; color: white; }
+		#settings-widget { position: absolute; top: 20px; left: 20px; background-color: #ffd700; color: #000; border-radius: 12px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.5); transform-origin: top left; transition: width 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55), height 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55), background-color 0.3s; overflow: hidden; z-index: 100; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; }
+		#settings-widget.minimized { width: 50px; height: 50px; justify-content: center; }
+		#settings-widget.maximized { width: 360px; height: 620px; cursor: default; }
+		@keyframes shakeWidget { 0% { transform: translateX(0) rotate(0deg); } 20% { transform: translateX(-10px) rotate(-2deg); } 40% { transform: translateX(10px) rotate(2deg); } 60% { transform: translateX(-10px) rotate(-2deg); } 80% { transform: translateX(10px) rotate(2deg); } 100% { transform: translateX(0) rotate(0deg); } }
+		#settings-widget.shake-error { animation: shakeWidget 0.4s ease-in-out; background-color: #8b0000 !important; color: #fff !important; }
+		@keyframes attentionPulse { 0% { transform: scale(1) rotate(0deg); box-shadow: 0 0 10px #ffd700; } 25% { transform: scale(1.2) rotate(10deg); box-shadow: 0 0 30px #ffd700; } 50% { transform: scale(1) rotate(-10deg); box-shadow: 0 0 10px #ffd700; } 75% { transform: scale(1.2) rotate(10deg); box-shadow: 0 0 30px #ffd700; } 100% { transform: scale(1) rotate(0deg); box-shadow: 0 4px 15px rgba(0,0,0,0.5); } }
+		.attention-anim { animation: attentionPulse 0.8s ease-in-out 2; }
+		#question-mark { font-size: 32px; font-weight: 900; margin: 0; transition: opacity 0.3s; }
+		#settings-widget.maximized #question-mark { display: none; }
+		#settings-content { display: none; opacity: 0; width: 100%; height: 100%; padding: 20px; box-sizing: border-box; flex-direction: column; gap: 8px; transition: opacity 0.4s ease 0.3s; overflow-y: auto; }
+		#settings-widget.maximized #settings-content { display: flex; opacity: 1; }
+		.app-description { font-size: 11.5px; line-height: 1.3; margin-bottom: 10px; color: #222; border-bottom: 1px solid #555; padding-bottom: 10px; }
+		.input-group { display: flex; flex-direction: column; text-align: left; }
+		.input-group label { font-size: 12px; font-weight: bold; margin-bottom: 2px; }
+		.input-group input, .input-group select { padding: 6px; border: 1px solid #333; border-radius: 4px; font-size: 14px; width: 100%; box-sizing: border-box; }
+		.ev-group { flex-direction: row; align-items: center; justify-content: space-between; border: 1px solid #555; padding: 5px; border-radius: 4px; background: rgba(0,0,0,0.1); }
+		#ev-snark { display: none; color: #ffaaaa; font-size: 11px; font-weight: bold; text-align: center; margin-top: 5px; text-transform: uppercase; }
+		.btn-row { display: flex; justify-content: space-between; margin-top: 10px; }
+		button { padding: 8px 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+		#btn-save { background-color: #28a745; color: white; }
+		#btn-save:hover { background-color: #218838; }
+		#btn-reset-settings { background-color: #dc3545; color: white; }
+		#btn-reset-settings:hover { background-color: #c82333; }
+		#scene { flex-grow: 1; position: relative; display: flex; justify-content: center; align-items: center; }
+		@keyframes flow { 0% { background-position: 0 0; } 100% { background-position: 0 30px; } }
+		#pour-stream { position: absolute; top: 0; width: 12px; left: calc(50% - 6px); box-shadow: 0 0 10px rgba(255, 215, 0, 0.5); z-index: 10; display: none; background: repeating-linear-gradient(to bottom, rgba(255, 215, 0, 0.9) 0px, rgba(255, 215, 0, 0.9) 15px, rgba(200, 150, 0, 0.4) 15px, rgba(200, 150, 0, 0.4) 30px); animation: flow 0.2s linear infinite; }
+		.jug-container { width: 120px; height: 160px; position: relative; z-index: 20; }
+		.jug-body { width: 100%; height: 100%; border: 4px solid rgba(255, 255, 255, 0.3); border-top: none; border-radius: 0 0 15px 15px; position: absolute; bottom: 0; overflow: hidden; background: rgba(255, 255, 255, 0.05); }
+		.jug-handle { width: 30px; height: 60px; border: 4px solid rgba(255, 255, 255, 0.3); border-left: none; border-radius: 0 15px 15px 0; position: absolute; right: -34px; top: 20px; }
+		.jug-neck { width: 40px; height: 20px; border: 4px solid rgba(255, 255, 255, 0.3); border-bottom: none; position: absolute; top: -20px; left: 40px; }
+		.liquid { position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; background: linear-gradient(to top, rgba(200, 150, 0, 0.9), rgba(255, 215, 0, 0.8)); transition: height 0.1s linear; }
+		#completed-area { height: 260px; border-top: 2px dashed #444; background: #111; padding: 15px; display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(8, 1fr); gap: 10px; overflow: hidden; box-sizing: border-box; }
+		#completed-area .jug-container { width: 36px; height: 48px; margin: 0 auto; transform: none !important; position: relative; }
+		#completed-area .jug-body { border-width: 2px; border-radius: 0 0 5px 5px; }
+		#completed-area .jug-handle { width: 9px; height: 18px; right: -11px; top: 6px; border-width: 2px; border-radius: 0 5px 5px 0; }
+		#completed-area .jug-neck { width: 12px; height: 6px; top: -6px; left: 12px; border-width: 2px; }
+		#stats-board { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.6); padding: 15px; border-radius: 8px; border: 1px solid #444; text-align: right; z-index: 50; }
+		.stat-line { font-size: 18px; margin: 5px 0; }
+		.stat-value { font-weight: bold; color: #ffd700; font-family: monospace; }
+		#btn-reset-gas { position: absolute; bottom: 310px; right: 20px; background: #6c757d; color: white; padding: 10px 15px; z-index: 60; }
+		#btn-reset-gas:hover { background: #5a6268; }
+		#changelog-link { position: absolute; bottom: 35px; right: 10px; font-size: 10px; color: #666; text-decoration: none; z-index: 100; transition: color 0.2s; }
+		#changelog-link:hover { color: #ccc; }
+		#changelog-modal { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #222; border: 1px solid #555; padding: 0; border-radius: 8px; z-index: 200; width: 600px; max-width: 90vw; max-height: 80vh; box-shadow: 0 0 20px rgba(0,0,0,0.8); overflow: hidden; }
+		.changelog-layout { display: flex; height: 100%; max-height: 80vh; }
+		.changelog-content { flex: 2; padding: 20px; overflow-y: auto; }
+		.changelog-sidebar { flex: 1; background: #1a1a1a; padding: 20px; border-left: 1px solid #444; display: flex; flex-direction: column; justify-content: flex-start; }
+		.changelog-content h3 { margin-top: 0; border-bottom: 1px solid #444; padding-bottom: 10px; }
+		.log-group { margin-bottom: 15px; }
+		.log-group h4 { margin: 0 0 5px 0; color: #ffd700; }
+		.log-group ul { margin: 0; padding-left: 20px; font-size: 14px; color: #bbb; }
+		.dev-info h3 { margin-top: 0; color: #ffd700; border-bottom: 1px solid #444; padding-bottom: 10px; font-size: 16px; }
+		.dev-info p { font-size: 13px; color: #ccc; margin: 8px 0; word-wrap: break-word; }
+		.dev-info a { color: #5dade2; text-decoration: none; }
+		.dev-info a:hover { text-decoration: underline; }
+		#close-changelog { margin-top: 15px; width: 100%; background: #444; }
+		#news-ticker { width: 100%; height: 30px; background: #111; position: absolute; bottom: 0; left: 0; font-family: monospace; font-size: 16px; line-height: 30px; overflow: hidden; white-space: nowrap; z-index: 150; border-top: 2px solid #555; cursor: pointer; user-select: none; }
+		@keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+		#ticker-content { display: inline-block; padding-left: 100vw; animation: marquee 60s linear infinite; }
+		.news-price { color: #f8f9fa; font-weight: normal; margin-right: 50px; text-shadow: 1px 1px 2px #000; }
+		.news-sell { color: #00ff00; font-weight: bold; margin-right: 50px; text-shadow: 1px 1px 2px #000; }
+		.news-crime { color: #ff0000; font-weight: bold; margin-right: 50px; text-shadow: 1px 1px 2px #000; }
+		.news-trip { color: #ffffff; font-weight: bold; margin-right: 50px; text-shadow: 0px 0px 5px #ffd700; }
+		@keyframes flashAlert { 0% { color: #fff; text-shadow: 0 0 10px #f0f; transform: scale(1); } 100% { color: #f0f; text-shadow: 0 0 20px #fff, 0 0 30px #f0f; transform: scale(1.1); } }
+		.news-flashy { font-weight: 900; margin-right: 50px; display: inline-block; animation: flashAlert 0.3s infinite alternate; letter-spacing: 1px; }
+	</style>
+</head>
+<body>
+	<div id="modal-overlay">
+		<div class="modal-box">
+			<h2>Location Required</h2>
+			<p>We need your location to magically calculate real road trip destinations based on the exact amount of imaginary gas you've earned. We promise not to sell it to the highest bidder.</p>
+			<div class="modal-btns">
+				<button id="btn-deny-loc" onclick="handleLocation(false)">No Thanks</button>
+				<button id="btn-allow-loc" onclick="handleLocation(true)">Allow Location</button>
+			</div>
+		</div>
+	</div>
+	<div id="settings-widget" class="minimized" onclick="toggleSettings(event)">
+		<p id="question-mark">?</p>
+		<div id="settings-content" onclick="event.stopPropagation()">
+			<h3 style="margin-top:0; border-bottom: 2px solid #000; padding-bottom:5px;">System Settings</h3>
+			<div class="app-description">
+				Welcome to the Real-Time Gas Earner. I created this web app to visualize the grim reality of converting labor directly into fossil fuels. By inputting your wage and local gas prices, you can watch in real-time as your hard work slowly trickles into a gas jug. In today's economy, where the cost of commuting eats into the wages earned *from* that commute, this tool serves as a satirical, geographic calculator of your daily economic grind.
+			</div>
+			<div class="input-group">
+				<label id="lbl-wage">Hourly Wage ($)</label>
+				<input type="number" id="in-wage" step="0.01" value="7.25">
+			</div>
+			<div class="input-group">
+				<label>Deductions (%)</label>
+				<input type="number" id="in-deduct" step="1" value="20">
+			</div>
+			<div class="input-group">
+				<label>Gas Price ($/gal)</label>
+				<input type="number" id="in-gas" step="0.01" value="4.60">
+			</div>
+			<div class="input-group" style="flex-direction:row; gap:10px;">
+				<div style="flex:1;">
+					<label>Car MPG</label>
+					<input type="number" id="in-mpg" step="0.1" placeholder="e.g. 25.5">
+				</div>
+				<div style="flex:2;">
+					<label>Preset Vehicle</label>
+					<select id="in-preset" onchange="applyPreset()">
+						<option value="">Custom...</option>
+						<option value="100">Moped (100 MPG)</option>
+						<option value="70">300cc Sport Bike (70 MPG)</option>
+						<option value="50">Two-Door Hybrid (50 MPG)</option>
+						<option value="40">1000cc Sport Bike (40 MPG)</option>
+						<option value="30">Four-Door Car (30 MPG)</option>
+						<option value="22">Light Pickup Truck (22 MPG)</option>
+						<option value="15">V8 Muscle Car (15 MPG)</option>
+						<option value="12">Large Gas Guzzling Truck (12 MPG)</option>
+					</select>
+				</div>
+			</div>
+			<div class="input-group ev-group">
+				<label style="margin:0;">EV Vehicle Mode</label>
+				<input type="checkbox" id="in-ev" onchange="evToggled(event)">
+			</div>
+			<div id="ev-snark">Nice try. We burn ancient pulverized dinosaurs here. Buy a real car.</div>
+			<div class="btn-row">
+				<button id="btn-reset-settings" onclick="resetSettings()">Defaults</button>
+				<button id="btn-save" onclick="saveSettings(event)">Save & Close</button>
+			</div>
+		</div>
+	</div>
+	<div id="stats-board">
+		<div class="stat-line">Rate: <span id="stat-rate" class="stat-value">0.00</span> gal/hr</div>
+		<div class="stat-line">Earned: <span id="stat-gallons" class="stat-value">0.00</span> gal</div>
+		<div class="stat-line">Time: <span id="stat-time" class="stat-value">00:00:00</span></div>
+		<div class="stat-line" id="dist-container" style="display:none;">Distance: <span id="stat-dist" class="stat-value">0.0</span> miles</div>
+	</div>
+	<div id="scene">
+		<div id="pour-stream"></div>
+		<div id="active-jug" class="jug-container">
+			<div class="jug-neck"></div>
+			<div class="jug-handle"></div>
+			<div class="jug-body"><div id="active-liquid" class="liquid"></div></div>
+		</div>
+	</div>
+	<button id="btn-reset-gas" onclick="resetProgress()">Reset Gas Earned</button>
+	<div id="completed-area"></div>
+	<a href="#" id="changelog-link" onclick="openChangelog(event)">v1.010 Changelog</a>
+	<div id="changelog-modal">
+		<div class="changelog-layout">
+			<div class="changelog-content">
+				<h3>Development Log</h3>
+				<div class="log-group">
+					<h4>Revisions 1.009 - 1.011 (Current cycle)</h4>
+					<ul>
+						<li>v1.009: Added flashy arrival marquee, auto-opening settings, and dynamic salary/hourly label adjustments.</li>
+						<li>v1.010: Added developer description to settings and created a sidebar in the changelog for developer contact info.</li>
+						<li>v1.011: (Pending future update)</li>
+					</ul>
+				</div>
+				<div class="log-group">
+					<h4>Revisions 1.006 - 1.008</h4>
+					<ul>
+						<li>v1.006: Updated news ticker to heavily focus on gas price satire and added specific town travel headlines.</li>
+						<li>v1.007: Expanded news pool by 3x with trade/scheme themes, injected milestone headlines dynamically.</li>
+						<li>v1.008: Completely overhauled ticker into 4 strictly formatted colors: Crime (Red), Selling (Green), Prices (Grey), and Distance-Scaled City Travel (Bold White). Added 33 real Oklahoma destinations.</li>
+					</ul>
+				</div>
+				<div class="log-group">
+					<h4>Revisions 1.003 - 1.005</h4>
+					<ul>
+						<li>v1.003: Added dynamic news headline marquee based on virtual travel distance.</li>
+						<li>v1.004: Added geolocation targeting, Haversine distance tracking, constant news scrolling, and vehicle presets.</li>
+						<li>v1.005: Made the marquee clickable to adjust scroll speeds.</li>
+					</ul>
+				</div>
+			</div>
+			<div class="changelog-sidebar">
+				<div class="dev-info">
+					<h3>Developer Info</h3>
+					<p><strong>Jamie Coleman</strong></p>
+					<p><a href="mailto:j4miecoleman@gmail.com">j4miecoleman@gmail.com</a></p>
+					<p><a href="http://grphx7.github.io" target="_blank">grphx7.github.io</a></p>
+				</div>
+				<button id="close-changelog" onclick="closeChangelog()">Close</button>
+			</div>
+		</div>
+	</div>
+	<div id="news-ticker" onclick="cycleTickerSpeed()" title="Click to adjust scroll speed">
+		<div id="ticker-content">LOADING BREAKING NEWS...</div>
+	</div>
+	<script>
+		const WIDGET = document.getElementById('settings-widget');
+		const IN_WAGE = document.getElementById('in-wage');
+		const LBL_WAGE = document.getElementById('lbl-wage');
+		const IN_DEDUCT = document.getElementById('in-deduct');
+		const IN_GAS = document.getElementById('in-gas');
+		const IN_MPG = document.getElementById('in-mpg');
+		const IN_PRESET = document.getElementById('in-preset');
+		const STAT_RATE = document.getElementById('stat-rate');
+		const STAT_GALLONS = document.getElementById('stat-gallons');
+		const STAT_TIME = document.getElementById('stat-time');
+		const STAT_DIST = document.getElementById('stat-dist');
+		const DIST_CONT = document.getElementById('dist-container');
+		const ACTIVE_LIQUID = document.getElementById('active-liquid');
+		const ACTIVE_JUG = document.getElementById('active-jug');
+		const POUR_STREAM = document.getElementById('pour-stream');
+		const COMPLETED_AREA = document.getElementById('completed-area');
+		const CHANGELOG = document.getElementById('changelog-modal');
+		const EV_SNARK = document.getElementById('ev-snark');
+		const TICKER_CONTENT = document.getElementById('ticker-content');
+		const OVERLAY = document.getElementById('modal-overlay');
+		let appState = { totalMs: 0, totalGallons: 0, completedJugs: 0, lastTick: Date.now() };
+		let settings = { rawWage: 7.25, wage: 7.25, deduct: 20, gas: 4.60, mpg: null };
+		let locInfo = { city: "Oklahoma City", lat: 35.4676, lon: -97.5164 };
+		let tickerSpeeds = [45, 60, 90, 120];
+		let currentSpeedIdx = 1;
+		let notifiedDestinations = new Set();
+		let hasShownFlashyArrival = false;
+		let availableCities = [{n:"Oklahoma City",lat:35.4676,lon:-97.5164},{n:"Moore",lat:35.3395,lon:-97.4867},{n:"Midwest City",lat:35.4495,lon:-97.3967},{n:"Del City",lat:35.45,lon:-97.4375},{n:"Warr Acres",lat:35.524,lon:-97.618},{n:"The Village",lat:35.5695,lon:-97.555},{n:"Mustang",lat:35.385,lon:-97.725},{n:"Bethany",lat:35.505,lon:-97.632},{n:"Choctaw",lat:35.4975,lon:-97.269},{n:"Edmond",lat:35.6528,lon:-97.4781},{n:"Yukon",lat:35.506,lon:-97.424},{n:"Newcastle",lat:35.245,lon:-97.601},{n:"Piedmont",lat:35.642,lon:-97.747},{n:"Norman",lat:35.222,lon:-97.439},{n:"Tuttle",lat:35.291,lon:-97.811},{n:"Noble",lat:35.139,lon:-97.394},{n:"Shawnee",lat:35.327,lon:-96.925},{n:"Stillwater",lat:36.115,lon:-97.058},{n:"Duncan",lat:34.502,lon:-97.957},{n:"Lawton",lat:34.608,lon:-98.390},{n:"Enid",lat:36.395,lon:-97.878},{n:"Ardmore",lat:34.174,lon:-97.143},{n:"Tulsa",lat:36.154,lon:-95.992},{n:"Ponca City",lat:36.707,lon:-97.085},{n:"Jenks",lat:36.026,lon:-95.968},{n:"Sapulpa",lat:35.998,lon:-96.114},{n:"Sand Springs",lat:36.139,lon:-96.108},{n:"Broken Arrow",lat:36.036,lon:-95.783},{n:"Owasso",lat:36.275,lon:-95.848},{n:"Bixby",lat:35.941,lon:-95.882},{n:"Bartlesville",lat:36.747,lon:-95.980},{n:"Muskogee",lat:35.747,lon:-95.369},{n:"Claremore",lat:36.312,lon:-95.616}];
+		const LOW_GAS_QUOTES = ["BREAKING: Man cannot afford enough gas to reverse out of his own driveway.", "UPDATE: Local resident trapped on their own street, refuses to walk 3 blocks.", "TRAFFIC: Commuter sitting in idling car hoping fumes will carry them to work.", "BREAKING: Woman celebrates earning enough gas to pull out of the garage.", "LOCAL: Driver stuck at end of cul-de-sac awaiting next paycheck to turn around.", "BREAKING: Man sits in parked car making 'vroom' noises to save cash.", "UPDATE: Neighborhood forms carpool just to listen to the radio.", "TRAFFIC: Guy pushes his car down a hill, hopes he doesn't have to come back up.", "LOCAL: Woman calculating the exact droplet count needed to reach the mailbox.", "BREAKING: Commuter asks boss if he can work from the gas station parking lot."];
+		const NEWS_PRICE = ["ECONOMY: Gas prices soar so high, locals consider riding Roombas to work.", "FINANCE: Station down the street now requires a credit check for 87 octane.", "NEWS: Bicycles see 5000% sales increase as gas hits new horrifying milestone.", "LOCAL: Mayor proposes replacing roads with slip-n-slides to conserve fuel.", "UPDATE: Carpooling now requires a minimum credit score of 750.", "TRENDS: 'New Car Smell' replaced by 'Affordable Gas Smell' air fresheners.", "FINANCE: Local bank introduces 30-year mortgages for filling up SUVs.", "ECONOMY: Worker calculating if it's cheaper to just mail themselves to the office.", "ECONOMY: Gas station replaces price marquee with simply 'IF YOU HAVE TO ASK...'.", "FINANCE: Banks begin offering payday loans specifically for premium unleaded.", "UPDATE: Economists suggest drinking less water to make room for drinking less gas.", "NEWS: Local stations now accepting firstborn children as partial payment.", "LOCAL: Area man checks gas prices, immediately goes back to sleep.", "TRENDS: Walking 20 miles to work deemed the new 'millennial fitness craze'.", "ECONOMY: Barrel of crude oil now worth more than a barrel of pure gold."];
+		const NEWS_SELL = ["TRADE: Man successfully barters rare vintage pog collection for half a tank of premium.", "FINANCE: Woman trades family heirloom for enough gas to visit grocery store.", "BREAKING: Florida man trades pet alligator for two gallons of diesel.", "ECONOMY: Area resident offers prized comic book collection for a single commute.", "LOCAL: Man tries to pay at the pump with a wheelbarrow full of loose crypto wallets.", "BREAKING: Local teen attempts to trade TikTok followers for premium unleaded.", "LOCAL: Desperate commuter trades his child's lunchable for a splash of ethanol.", "BREAKING: Collector trades pristine Charizard card to fill up a 2004 Corolla.", "TRADE: Teen trades PS5 and entire game library for 3 gallons of 87 octane.", "FINANCE: Couple barters their timeshare for a weekend's worth of commuting fuel.", "LOCAL: Man pawns his grandmother's urn, puts proceeds straight into the tank.", "BREAKING: Woman trades her collection of rare beanie babies for a splash of diesel.", "TRADE: Local gamer trades level 99 World of Warcraft account for half a tank.", "ECONOMY: Neighborhood hosts yard sale solely to fund a single trip to Costco.", "FINANCE: Man sells his right shoe to afford enough gas to drive to a shoe store."];
+		const NEWS_CRIME = ["CRIME: Local caught attaching wind sails to a Honda Civic.", "ARREST: Driver pulled over for using a makeshift sail constructed from stolen bedsheets.", "UPDATE: Woman caught secretly plugging her hybrid into the neighbor's bug zapper.", "NEWS: Local man hollows out floorboards to Flintstone his way to work.", "BREAKING: Desperate driver caught trying to squeeze crude oil out of plastic dinosaurs.", "LOCAL: Man attempts to ferment grass clippings to run his pickup truck.", "CRIME: Commuter tells police his car is 'technically a bicycle' if he pushes it.", "CRIME: Man attempts to rob bank, demands they fill his tank instead of the bag.", "BREAKING: Local caught attaching 500 hamsters to a custom driveshaft.", "CRIME: Man arrested for trying to milk a gas pump like a cow.", "ARREST: Local caught attaching a giant rubber band to a bridge to slingshot his car.", "UPDATE: Police apprehend woman trying to pedal her Prius with a modified bicycle chain.", "NEWS: Driver arrested after attempting to fuel car with aggressive thoughts.", "CRIME: Thieves steal man's gas cap, leave the actual car behind as it's worthless.", "LOCAL: Man tries to rob gas station using a water gun filled with expensive premium.", "ARREST: Teen caught siphoning fumes using a crazy straw and a ziplock bag."];
+		const REASONS_SHORT = ["to buy a slightly cheaper loaf of bread", "to return a library book that is 3 years overdue", "to steal back a borrowed tupperware container", "to dramatically deliver a single post-it note"];
+		const REASONS_MED = ["to confront their high school bully", "to bury a mysterious locked box in the woods", "to flee a highly aggressive flock of geese", "to attend a secret underground cheese tasting"];
+		const REASONS_LONG = ["to establish a completely new identity as a baker", "to escape a local gambling syndicate", "to smuggle forbidden artifacts across county lines", "to outrun their crippling financial debt"];
+		const REASONS_EPIC = ["to join a secretive cult devoted to low mpg vehicles", "to fake their own disappearance in a dramatic explosion", "to seek the legendary fountain of affordable unleaded fuel", "to outrun the ghosts of their past mistakes"];
+		IN_WAGE.addEventListener('input', function() {
+			if (parseFloat(this.value) > 10000) LBL_WAGE.innerText = "Yearly Salary ($)";
+			else LBL_WAGE.innerText = "Hourly Wage ($)";
+		});
+		function getHaversineDist(lat1, lon1, lat2, lon2) {
+			const R = 3958.8; const dLat = (lat2 - lat1) * Math.PI / 180; const dLon = (lon2 - lon1) * Math.PI / 180;
+			const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+			return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+		}
+		function handleLocation(allow) {
+			OVERLAY.style.display = 'none';
+			triggerInitialAnimation();
+			if(allow && navigator.geolocation) {
+				navigator.geolocation.getCurrentPosition((pos) => {
+					locInfo.lat = pos.coords.latitude; locInfo.lon = pos.coords.longitude;
+					fetch(`https://nominatim.openstreetmap.org/reverse?lat=${locInfo.lat}&lon=${locInfo.lon}&format=json`).then(r => r.json()).then(data => {
+						locInfo.city = data.address.city || data.address.town || data.address.village || "Unknown Origin";
+						mapCityDistances(); startGame();
+						setTimeout(injectFlashyArrival, 500);
+					}).catch(() => { mapCityDistances(); startGame(); });
+				}, () => { mapCityDistances(); startGame(); });
+			} else { mapCityDistances(); startGame(); }
+		}
+		function triggerInitialAnimation() {
+			WIDGET.classList.add('attention-anim');
+			setTimeout(() => {
+				WIDGET.classList.remove('attention-anim');
+				if(WIDGET.classList.contains('minimized')) {
+					WIDGET.classList.remove('minimized');
+					WIDGET.classList.add('maximized');
+				}
+			}, 1600);
+		}
+		function injectFlashyArrival() {
+			if(hasShownFlashyArrival) return;
+			let spans = document.querySelectorAll('#ticker-content span');
+			let targetSpan = spans[spans.length - 1];
+			for(let i=0; i<spans.length; i++) { if(spans[i].getBoundingClientRect().left > window.innerWidth) { targetSpan = spans[i]; break; } }
+			targetSpan.className = 'news-flashy';
+			targetSpan.innerText = `🚨 BREAKING ALERT: RESIDENT HAS JUST ARRIVED IN ${locInfo.city.toUpperCase()} AND IS ALREADY OUT OF GAS! 🚨`;
+			hasShownFlashyArrival = true;
+		}
+		function mapCityDistances() {
+			availableCities.forEach(c => { c.dist = getHaversineDist(locInfo.lat, locInfo.lon, c.lat, c.lon); });
+			availableCities.sort((a,b) => a.dist - b.dist);
+		}
+		function startGame() {
+			loadSettings(); appState.lastTick = Date.now(); requestAnimationFrame(gameLoop);
+			updateStreamPosition(); window.addEventListener('resize', updateStreamPosition);
+			TICKER_CONTENT.addEventListener('animationiteration', updateMarquee); updateMarquee();
+		}
+		function applyPreset() { if(IN_PRESET.value !== "") IN_MPG.value = IN_PRESET.value; }
+		function cycleTickerSpeed() { currentSpeedIdx = (currentSpeedIdx + 1) % tickerSpeeds.length; TICKER_CONTENT.style.animationDuration = tickerSpeeds[currentSpeedIdx] + 's'; }
+		function getTripReason(d) {
+			if(d < 15) return REASONS_SHORT[Math.floor(Math.random() * REASONS_SHORT.length)];
+			if(d < 45) return REASONS_MED[Math.floor(Math.random() * REASONS_MED.length)];
+			if(d < 90) return REASONS_LONG[Math.floor(Math.random() * REASONS_LONG.length)];
+			return REASONS_EPIC[Math.floor(Math.random() * REASONS_EPIC.length)];
+		}
+		function injectCityHeadline(cityObj) {
+			let spans = document.querySelectorAll('#ticker-content span');
+			let targetSpan = spans[spans.length - 1];
+			for(let i=0; i<spans.length; i++) { if(spans[i].getBoundingClientRect().left > window.innerWidth) { targetSpan = spans[i]; break; } }
+			targetSpan.className = 'news-trip';
+			targetSpan.innerText = `BREAKING: Local travels from ${locInfo.city} to ${cityObj.n} ${getTripReason(cityObj.dist)}!`;
+		}
+		function updateMarquee() {
+			let mpg = settings.mpg !== null ? settings.mpg : 20; let dist = appState.totalGallons * mpg;
+			let htmlArr = [];
+			for(let i=0; i<20; i++) {
+				if(dist < 10 && Math.random() > 0.5) {
+					htmlArr.push(`<span class="news-trip">${LOW_GAS_QUOTES[Math.floor(Math.random() * LOW_GAS_QUOTES.length)]}</span>`);
+				} else {
+					let r = Math.random();
+					if(r < 0.33) htmlArr.push(`<span class="news-price">${NEWS_PRICE[Math.floor(Math.random() * NEWS_PRICE.length)]}</span>`);
+					else if(r < 0.66) htmlArr.push(`<span class="news-sell">${NEWS_SELL[Math.floor(Math.random() * NEWS_SELL.length)]}</span>`);
+					else htmlArr.push(`<span class="news-crime">${NEWS_CRIME[Math.floor(Math.random() * NEWS_CRIME.length)]}</span>`);
+				}
+			}
+			let block = htmlArr.join(''); TICKER_CONTENT.innerHTML = block + block;
+		}
+		function toggleSettings(e) { if(WIDGET.classList.contains('minimized')) { WIDGET.classList.remove('minimized'); WIDGET.classList.add('maximized'); } }
+		function evToggled(e) {
+			if(e.target.checked) {
+				e.target.checked = false; e.target.disabled = true;
+				WIDGET.classList.add('shake-error'); EV_SNARK.style.display = 'block';
+				setTimeout(() => { WIDGET.classList.remove('shake-error'); EV_SNARK.style.display = 'none'; }, 3000);
+			}
+		}
+		function saveSettings(e) {
+			e.stopPropagation();
+			let wageInput = parseFloat(IN_WAGE.value) || 7.25;
+			settings.rawWage = wageInput;
+			settings.wage = wageInput > 10000 ? wageInput / 2080 : wageInput;
+			settings.deduct = parseFloat(IN_DEDUCT.value) || 0;
+			settings.gas = parseFloat(IN_GAS.value) || 4.60; settings.mpg = IN_MPG.value === "" ? null : parseFloat(IN_MPG.value);
+			localStorage.setItem('gasAppCfg', JSON.stringify(settings)); WIDGET.classList.remove('maximized'); WIDGET.classList.add('minimized'); updateMarquee();
+		}
+		function resetSettings() { IN_WAGE.value = 7.25; LBL_WAGE.innerText = "Hourly Wage ($)"; IN_DEDUCT.value = 20; IN_GAS.value = 4.60; IN_MPG.value = ""; IN_PRESET.value = ""; }
+		function loadSettings() {
+			let saved = localStorage.getItem('gasAppCfg');
+			if(saved) {
+				settings = JSON.parse(saved);
+				if(settings.rawWage) { IN_WAGE.value = settings.rawWage; LBL_WAGE.innerText = settings.rawWage > 10000 ? "Yearly Salary ($)" : "Hourly Wage ($)"; }
+				else { IN_WAGE.value = settings.wage; LBL_WAGE.innerText = "Hourly Wage ($)"; }
+				IN_DEDUCT.value = settings.deduct; IN_GAS.value = settings.gas;
+				if(settings.mpg !== null) { IN_MPG.value = settings.mpg; IN_PRESET.value = ""; }
+			}
+		}
+		function updateStreamPosition() { let jugRect = ACTIVE_JUG.getBoundingClientRect(); POUR_STREAM.style.bottom = (window.innerHeight - jugRect.top) + 'px'; }
+		function resetProgress() {
+			appState.totalMs = 0; appState.totalGallons = 0; appState.completedJugs = 0; appState.lastTick = Date.now();
+			notifiedDestinations.clear(); COMPLETED_AREA.innerHTML = ''; ACTIVE_LIQUID.style.height = '0%'; updateMarquee();
+		}
+		function openChangelog(e) { e.preventDefault(); CHANGELOG.style.display = 'block'; }
+		function closeChangelog() { CHANGELOG.style.display = 'none'; }
+		function formatTime(ms) {
+			let t = Math.floor(ms / 1000); return [Math.floor(t / 3600), Math.floor((t % 3600) / 60), t % 60].map(v => v.toString().padStart(2, '0')).join(':');
+		}
+		function slideJugAnimation() {
+			if(appState.completedJugs > 40) return;
+			let clone = ACTIVE_JUG.cloneNode(true); clone.querySelector('.liquid').style.height = '100%';
+			let startRect = ACTIVE_JUG.getBoundingClientRect(); ACTIVE_JUG.style.opacity = '0';
+			clone.style.position = 'fixed'; clone.style.left = startRect.left + 'px'; clone.style.top = startRect.top + 'px'; clone.style.margin = '0';
+			clone.style.transformOrigin = 'top left'; clone.style.transform = 'scale(1)'; clone.style.transition = 'all 1s cubic-bezier(0.25, 1, 0.5, 1)'; clone.style.zIndex = '999';
+			document.body.appendChild(clone);
+			let dummy = document.createElement('div'); dummy.className = 'jug-container'; dummy.style.opacity = '0'; COMPLETED_AREA.appendChild(dummy);
+			setTimeout(() => { let endRect = dummy.getBoundingClientRect(); clone.style.left = endRect.left + 'px'; clone.style.top = endRect.top + 'px'; clone.style.transform = 'scale(0.3)'; }, 50);
+			setTimeout(() => { dummy.style.opacity = '1'; dummy.innerHTML = ACTIVE_JUG.innerHTML; dummy.querySelector('.liquid').style.height = '100%'; document.body.removeChild(clone); ACTIVE_LIQUID.style.height = '0%'; ACTIVE_JUG.style.opacity = '1'; }, 1050);
+		}
+		function gameLoop() {
+			let now = Date.now(); let dt = now - appState.lastTick; appState.lastTick = now;
+			if(settings.gas > 0 && settings.wage > 0) {
+				POUR_STREAM.style.display = 'block'; appState.totalMs += dt;
+				let netHourly = settings.wage * (1 - (settings.deduct / 100)); STAT_RATE.innerText = (netHourly / settings.gas).toFixed(2);
+				appState.totalGallons += ((netHourly / 3600000) / settings.gas * dt); STAT_GALLONS.innerText = appState.totalGallons.toFixed(2);
+				STAT_TIME.innerText = formatTime(appState.totalMs);
+				if(settings.mpg !== null) { 
+					DIST_CONT.style.display = 'block'; let currentDist = appState.totalGallons * settings.mpg; STAT_DIST.innerText = currentDist.toFixed(1); 
+					availableCities.forEach(c => {
+						if(c.dist > 1 && c.dist <= currentDist && !notifiedDestinations.has(c.n)) {
+							notifiedDestinations.add(c.n); injectCityHeadline(c);
+						}
+					});
+				} else { DIST_CONT.style.display = 'none'; }
+				let targetJugs = Math.floor(appState.totalGallons); ACTIVE_LIQUID.style.height = ((appState.totalGallons - targetJugs) * 100) + '%';
+				if(targetJugs > appState.completedJugs) { appState.completedJugs++; slideJugAnimation(); }
+			} else { POUR_STREAM.style.display = 'none'; STAT_RATE.innerText = "0.00"; }
+			requestAnimationFrame(gameLoop);
+		}
+	</script>
+</body>
+</html>
+
